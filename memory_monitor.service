@@ -1,0 +1,17 @@
+[Unit]
+Description=Memory Cache Monitor Daemon
+After=local-fs.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/memory_monitor.sh
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
