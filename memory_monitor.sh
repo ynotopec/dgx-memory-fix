@@ -4,6 +4,9 @@ set -euo pipefail
 INTERVAL="${INTERVAL:-30}"
 RATIO_PERCENT="${RATIO_PERCENT:-75}"
 DROP_MODE="${DROP_MODE:-3}"
+COOLDOWN_SEC="${COOLDOWN_SEC:-60}"
+
+last_drop=0
 
 while true; do
   # 1. Get OS "Used" metric (in KB)
@@ -17,10 +20,14 @@ while true; do
 
   used_calc_kb=$((rss_kb + gpu_kb))
 
+  now=$(date +%s)
+
   # 4. Exact formula: if (RSS + GPU) < 75% of OS_USED
-  if (( used_calc_kb * 100 < used_os_kb * RATIO_PERCENT )); then
+  #    and cooldown elapsed, then drop caches
+  if (( used_calc_kb * 100 < used_os_kb * RATIO_PERCENT && now - last_drop >= COOLDOWN_SEC )); then
     sync
     echo "$DROP_MODE" > /proc/sys/vm/drop_caches
+    last_drop=$now
   fi
 
   sleep "$INTERVAL"
