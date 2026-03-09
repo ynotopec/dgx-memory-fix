@@ -8,6 +8,24 @@ COOLDOWN_SEC="${COOLDOWN_SEC:-60}"
 
 last_drop=0
 
+get_gpu_kb() {
+  if ! command -v nvidia-smi >/dev/null 2>&1; then
+    echo 0
+    return 0
+  fi
+
+  # If the NVIDIA driver/GPU is unavailable (e.g. reset in progress),
+  # nvidia-smi may return non-zero. Treat that as "no measurable GPU usage"
+  # so the daemon keeps running instead of crashing.
+  local smi_out
+  if ! smi_out=$(nvidia-smi --query-compute-apps=used_gpu_memory --format=csv,noheader,nounits 2>/dev/null); then
+    echo 0
+    return 0
+  fi
+
+  awk '{s+=$1} END {print (s+0)*1024}' <<<"$smi_out"
+}
+
 while true; do
   # 1. Get OS "Used" metric (in KB)
   used_os_kb=$(free -k | awk 'NR==2 {print $3}')
@@ -16,7 +34,7 @@ while true; do
   rss_kb=$(ps -e -o rss= | awk '{s+=$1} END {print s+0}')
 
   # 3. Get GPU memory sum (converted to KB)
-  gpu_kb=$(nvidia-smi --query-compute-apps=used_gpu_memory --format=csv,noheader,nounits 2>/dev/null | awk '{s+=$1} END {print (s+0)*1024}')
+  gpu_kb=$(get_gpu_kb)
 
   used_calc_kb=$((rss_kb + gpu_kb))
 
